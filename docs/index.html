@@ -1,70 +1,182 @@
 <!doctype html><html lang="es"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AGRO – Datos</title>
+<title>AGRO – Datos con menú</title>
+<link rel="preconnect" href="https://unpkg.com">
 <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <style>
- body{margin:0;font:14px/1.4 system-ui;background:#f6faf8}
- header{background:#2a7f62;color:#fff;padding:12px 16px} h1{margin:0;font-size:18px}
- main{max-width:1100px;margin:auto;padding:16px}
- .card{background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
- label{font-weight:600;margin-right:6px}
- select,input{padding:8px;border:1px solid #dcdfe3;border-radius:8px}
- table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
- thead th{position:sticky;top:0;background:#eef3f1;text-align:left;padding:6px;border-bottom:1px solid #dce5e0}
- tbody td{padding:6px;border-bottom:1px solid #eef2f0;white-space:nowrap}
- .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
- .small{font-size:12px;color:#666}
+  :root{--bg:#f6faf8;--card:#fff;--accent:#2a7f62;--muted:#667085}
+  *{box-sizing:border-box} body{margin:0;font:14px/1.4 system-ui,Segoe UI,Roboto,Arial;background:var(--bg)}
+  header{background:var(--accent);color:#fff;padding:12px 16px} header h1{margin:0;font-size:18px}
+  .wrap{max-width:1200px;margin:auto;padding:16px;display:grid;gap:16px;grid-template-columns:280px 1fr}
+  .card{background:var(--card);border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+  .p16{padding:16px}
+  /* Menú */
+  aside details{border:1px solid #e6ebe8;border-radius:10px;margin-bottom:10px;background:#fff}
+  aside summary{cursor:pointer;list-style:none;padding:10px 12px;font-weight:700}
+  aside summary::-webkit-details-marker{display:none}
+  .submenu{display:block;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid #eef2f0;padding:10px 12px;cursor:pointer}
+  .submenu:hover{background:#f2f7f5}
+  .submenu.active{background:#e5f3ee}
+  /* Panel derecho */
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  label{font-weight:600;margin-right:6px}
+  select,input{padding:8px;border:1px solid #dcdfe3;border-radius:8px;background:#fff}
+  .small{font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{position:sticky;top:0;background:#eef3f1;text-align:left;padding:6px;border-bottom:1px solid #dce5e0}
+  tbody td{padding:6px;border-bottom:1px solid #eef2f0;white-space:nowrap}
+  .tableWrap{overflow:auto;max-height:70vh;border:1px solid #eef2f0;border-radius:10px;margin-top:8px}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr}}
 </style>
 <header><h1>AGRO – Navegador de datos</h1></header>
-<main class="card">
-  <div class="row">
-    <label>Archivo</label>
-    <select id="file"></select>
-    <label>Buscar</label>
-    <input id="q" placeholder="texto…">
-    <span id="status" class="small">Elegí un archivo</span>
-  </div>
-  <div style="overflow:auto;max-height:70vh;border:1px solid #eef2f0;border-radius:10px;margin-top:8px">
-    <table id="tbl"><thead></thead><tbody></tbody></table>
-  </div>
-</main>
+<div class="wrap">
+
+  <!-- ===== Menú desplegable con submenús ===== -->
+  <aside class="card p16" id="menu">
+    <details open>
+      <summary>Agricultura</summary>
+      <button class="submenu" data-cat="Agricultura" data-sub="1 Producción">1 Producción</button>
+      <button class="submenu" data-cat="Agricultura" data-sub="2 Existencias">2 Existencias</button>
+      <button class="submenu" data-cat="Agricultura" data-sub="3 Agroprocesamiento">3 Agroprocesamiento</button>
+      <button class="submenu" data-cat="Agricultura" data-sub="4 Precios">4 Precios</button>
+      <button class="submenu" data-cat="Agricultura" data-sub="5 Comercialización">5 Comercialización</button>
+    </details>
+
+    <details>
+      <summary>Ganadería</summary>
+      <button class="submenu" data-cat="Ganadería" data-sub="1 Producción">1 Producción</button>
+      <button class="submenu" data-cat="Ganadería" data-sub="2 Existencias">2 Existencias</button>
+      <button class="submenu" data-cat="Ganadería" data-sub="3 Agroprocesamiento">3 Agroprocesamiento</button>
+      <button class="submenu" data-cat="Ganadería" data-sub="4 Precios">4 Precios</button>
+      <button class="submenu" data-cat="Ganadería" data-sub="5 Comercialización">5 Comercialización</button>
+    </details>
+  </aside>
+
+  <!-- ===== Panel de datasets + tabla ===== -->
+  <main class="card p16">
+    <div class="row">
+      <label>Dataset</label>
+      <select id="dataset"></select>
+      <span id="meta" class="small"></span>
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <label>Buscar</label>
+      <input id="q" placeholder="texto…">
+      <span id="status" class="small">Elegí un submenú para listar datasets.</span>
+    </div>
+
+    <div class="tableWrap">
+      <table id="tbl"><thead></thead><tbody></tbody></table>
+    </div>
+  </main>
+</div>
+
 <script>
-/* 1) EDITÁ ESTA LISTA con los nombres REALES que subiste a docs/data/ */
-const FILES = [
-  {title:"Agricultura – Indicadores (CSV)", url:"data/agricultura_indicadores.csv"},
-  {title:"Bovinos – Faena (XLSX)", url:"data/bovinos_faena.xlsx"},
-  {title:"Porcinos – Faena (XLSX)", url:"data/porcinos_faena.xlsx"}
-];
-/* 2) --- No hace falta tocar desde acá --- */
-const $file=document.getElementById('file'), $q=document.getElementById('q');
-const $thead=document.querySelector('#tbl thead'), $tbody=document.querySelector('#tbl tbody');
-const $status=document.getElementById('status'); let rows=[], cols=[], filtered=[];
-$file.innerHTML = FILES.map((f,i)=>`<option value="${i}">${f.title}</option>`).join('');
-$file.addEventListener('change',()=>load(FILES[$file.value].url));
-$q.addEventListener('input',()=>{ const s=($q.value||'').toLowerCase().trim();
+/* ===================== 1) CATÁLOGO ===================== 
+   EDITÁ SOLO ESTO: poné los archivos reales que subiste a docs/data/
+   Podés usar CSV o XLSX (lee la 1ª hoja del Excel).
+*/
+const CATALOG = {
+  "Agricultura": {
+    "1 Producción": [
+      { title: "Indicadores por cultivo y provincia (CSV)", url: "data/Agricultura_indicadores_Producción.xlsx", note: "Área sembrada, cosechada, rendimiento y producción." }
+    ],
+    "2 Existencias": [
+      { title: "Existencias agrícolas (XLSX)", url: "data/agricultura_existencias.xlsx" }
+    ],
+    "3 Agroprocesamiento": [
+      { title: "Agroprocesamiento (CSV)", url: "data/agroprocesamiento.csv" }
+    ],
+    "4 Precios": [
+      { title: "Precios agrícolas (XLSX)", url: "data/precios_agricultura.xlsx" }
+    ],
+    "5 Comercialización": [
+      { title: "Comercialización (CSV)", url: "data/comercializacion_agricultura.csv" }
+    ]
+  },
+  "Ganadería": {
+    "1 Producción": [
+      { title: "Bovinos – Faena y producción (XLSX)", url: "data/bovinos_faena.xlsx" }
+    ],
+    "2 Existencias": [
+      { title: "Existencias ganaderas (CSV)", url: "data/existencias_ganaderas.csv" }
+    ],
+    "3 Agroprocesamiento": [
+      { title: "Agroprocesamiento cárnico (CSV)", url: "data/agroproc_ganaderia.csv" }
+    ],
+    "4 Precios": [
+      { title: "Precios ganaderos (XLSX)", url: "data/precios_ganaderia.xlsx" }
+    ],
+    "5 Comercialización": [
+      { title: "Comercialización ganadera (CSV)", url: "data/comercializacion_ganaderia.csv" }
+    ]
+  }
+};
+/* ============== 2) Lógica (no hace falta tocar) ============== */
+const $dataset = document.getElementById('dataset');
+const $meta = document.getElementById('meta');
+const $q = document.getElementById('q');
+const $status = document.getElementById('status');
+const $thead = document.querySelector('#tbl thead');
+const $tbody = document.querySelector('#tbl tbody');
+
+let rows=[], cols=[], filtered=[];
+
+function fmt(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-AR'):n;}
+function render(){
+  $thead.innerHTML = '<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  $tbody.innerHTML = filtered.map(r=>'<tr>'+cols.map(c=>{
+    const v=r[c]; return `<td>${(String(v).length<16 && !isNaN(v))?fmt(v):(v??'')}</td>`;
+  }).join('')+'</tr>').join('');
+  $status.textContent = `Filas: ${filtered.length.toLocaleString('es-AR')} • Columnas: ${cols.length}`;
+}
+$q.addEventListener('input', ()=>{
+  const s=($q.value||'').toLowerCase().trim();
   filtered = !s ? rows : rows.filter(r=>Object.values(r).some(v=>String(v).toLowerCase().includes(s)));
   render();
 });
-function fmt(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-AR'):n;}
-function render(){
-  $thead.innerHTML='<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
-  $tbody.innerHTML=filtered.map(r=>'<tr>'+cols.map(c=>{
-    const v=r[c]; return `<td>${(String(v).length<16 && !isNaN(v))?fmt(v):(v??'')}</td>`;
-  }).join('')+'</tr>').join('');
-  $status.textContent=`Filas: ${filtered.length.toLocaleString('es-AR')} • Columnas: ${cols.length}`;
-}
-async function load(url){
-  $status.textContent='Cargando…'; rows=[]; cols=[]; filtered=[]; render();
-  if(url.toLowerCase().endsWith('.csv')){
+
+async function loadFile(url){
+  $status.textContent = 'Cargando…'; rows=[]; cols=[]; filtered=[]; render();
+  if (url.toLowerCase().endsWith('.csv')){
     const parsed = await new Promise((ok,err)=>Papa.parse(url,{download:true,header:true,dynamicTyping:true,skipEmptyLines:true,complete:ok,error:err}));
-    rows=parsed.data||[]; cols=parsed.meta?.fields||Object.keys(rows[0]||{});
-  }else{ // xlsx
-    const res=await fetch(url), buf=await res.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'}), sh=wb.Sheets[wb.SheetNames[0]];
-    rows=XLSX.utils.sheet_to_json(sh,{defval:''}); cols=Object.keys(rows[0]||{});
+    rows = parsed.data||[]; cols = parsed.meta?.fields || Object.keys(rows[0]||{});
+  } else { // XLSX
+    const res = await fetch(url); const buf = await res.arrayBuffer();
+    const wb = XLSX.read(buf,{type:'array'}); const sh = wb.Sheets[wb.SheetNames[0]];
+    rows = XLSX.utils.sheet_to_json(sh,{defval:''}); cols = Object.keys(rows[0]||{});
   }
-  filtered=rows; render();
+  filtered = rows; render();
 }
-if(FILES.length){ $file.value=0; load(FILES[0].url); }
+
+function listDatasets(cat, sub){
+  // activar estilo en el botón
+  document.querySelectorAll('.submenu').forEach(b=>b.classList.remove('active'));
+  const activeBtn = [...document.querySelectorAll(`.submenu[data-cat="${cat}"][data-sub="${sub}"]`)][0];
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const list = (CATALOG[cat] && CATALOG[cat][sub]) ? CATALOG[cat][sub] : [];
+  $dataset.innerHTML = list.map((d,i)=>`<option value="${i}">${d.title}</option>`).join('');
+  $meta.textContent = list[0]?.note || '';
+  if (list[0]?.url) loadFile(list[0].url);
+
+  $dataset.onchange = () => {
+    const d = list[$dataset.value]; 
+    $meta.textContent = d?.note || '';
+    if (d?.url) loadFile(d.url);
+  };
+}
+
+// Acción de los submenús
+document.querySelectorAll('.submenu').forEach(btn=>{
+  btn.addEventListener('click', ()=> listDatasets(btn.dataset.cat, btn.dataset.sub));
+});
+
+// (Opcional) Abrir por defecto Agricultura → 1 Producción si existe
+if (CATALOG["Agricultura"] && CATALOG["Agricultura"]["1 Producción"]) {
+  listDatasets("Agricultura","1 Producción");
+}
 </script>
+
