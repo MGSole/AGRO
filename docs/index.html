@@ -88,8 +88,8 @@
 const CATALOG = {
   "Agricultura": {
     "1 Producción": [
-      { title: "Indicadores por cultivo y provincia (XLSX)", url: "docs/data/Agricultura_indicadores_produccion.xlsx", note: "Área sembrada, cosechada, rendimiento y producción." }
-    ], 
+      { title: "Indicadores por cultivo y provincia (XLSX)", url: "data/Agricultura_indicadores_produccion.xlsx", note: "Área sembrada, cosechada, rendimiento y producción." }
+    ],
     "2 Existencias": [
       { title: "Existencias agrícolas (XLSX)", url: "data/agricultura_existencias.xlsx" }
     ],
@@ -105,7 +105,7 @@ const CATALOG = {
   },
   "Ganadería": {
     "1 Producción": [
-      { title: "Bovinos – Faena y producción (XLSX)", url: "data/Bovinos_faena_produccion.xlsx" }
+      { title: "Bovinos – Faena y producción (XLSX)", url: "data/Bovinos_faena_producción.xlsx" }
     ],
     "2 Existencias": [
       { title: "Existencias ganaderas (CSV)", url: "data/existencias_ganaderas.csv" }
@@ -118,3 +118,101 @@ const CATALOG = {
     ],
     "5 Comercialización": [
       { title: "Comercialización ganadera (CSV)", url: "data/comercializacion_ganaderia.csv" }
+    ]
+  }
+};
+
+/* ============== 2) Lógica (no hace falta tocar) ============== */
+const $dataset = document.getElementById('dataset');
+const $meta = document.getElementById('meta');
+const $q = document.getElementById('q');
+const $status = document.getElementById('status');
+const $thead = document.querySelector('#tbl thead');
+const $tbody = document.querySelector('#tbl tbody');
+const $open = document.getElementById('open');           // Ver original
+const $dl   = document.getElementById('dl');             // Descargar original
+const $dlF  = document.getElementById('dlFiltered');     // Descargar recorte (CSV)
+
+let rows=[], cols=[], filtered=[];
+
+function fmt(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-AR'):n;}
+function render(){
+  $thead.innerHTML = '<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  $tbody.innerHTML = filtered.map(r=>'<tr>'+cols.map(c=>{
+    const v=r[c]; return `<td>${(String(v).length<16 && !isNaN(v))?fmt(v):(v??'')}</td>`;
+  }).join('')+'</tr>').join('');
+  $status.textContent = `Filas: ${filtered.length.toLocaleString('es-AR')} • Columnas: ${cols.length}`;
+}
+
+$q.addEventListener('input', ()=>{
+  const s=($q.value||'').toLowerCase().trim();
+  filtered = !s ? rows : rows.filter(r=>Object.values(r).some(v=>String(v).toLowerCase().includes(s)));
+  render();
+});
+
+function updateLinks(url){
+  if(!url){ $open.removeAttribute('href'); $dl.removeAttribute('href'); return; }
+  $open.href = url;                                // ver original (CSV se ve; XLSX se descarga)
+  $dl.href   = url;                                // forzar descarga
+  $dl.setAttribute('download', url.split('/').pop());
+}
+
+function toCSV(cols, data){
+  const head = cols.join(',');
+  const body = data.map(r => cols.map(c => `"${String(r[c]??'').replaceAll('"','""')}"`).join(','));
+  return [head, ...body].join('\n');
+}
+$dlF.addEventListener('click', ()=>{
+  if(!cols.length) return;
+  const csv = toCSV(cols, filtered);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), {href:url, download:'recorte.csv'});
+  a.click(); URL.revokeObjectURL(url);
+});
+
+async function loadFile(url){
+  try{
+    $status.textContent = 'Cargando…'; rows=[]; cols=[]; filtered=[]; render();
+    updateLinks(url);
+    if (url.toLowerCase().endsWith('.csv')){
+      const parsed = await new Promise((ok,err)=>Papa.parse(url,{download:true,header:true,dynamicTyping:true,skipEmptyLines:true,complete:ok,error:err}));
+      rows = parsed.data||[]; cols = parsed.meta?.fields || Object.keys(rows[0]||{});
+    } else {
+      const res = await fetch(url); const buf = await res.arrayBuffer();
+      const wb = XLSX.read(buf,{type:'array'}); const sh = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json(sh,{defval:''}); cols = Object.keys(rows[0]||{});
+    }
+    filtered = rows; render();
+  }catch(e){
+    $status.textContent = 'Error al cargar: ' + (e?.message||e);
+  }
+}
+
+function listDatasets(cat, sub){
+  document.querySelectorAll('.submenu').forEach(b=>b.classList.remove('active'));
+  const activeBtn = [...document.querySelectorAll(`.submenu[data-cat="${cat}"][data-sub="${sub}"]`)][0];
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const list = (CATALOG[cat] && CATALOG[cat][sub]) ? CATALOG[cat][sub] : [];
+  $dataset.innerHTML = list.map((d,i)=>`<option value="${i}">${d.title}</option>`).join('');
+  $meta.textContent = list[0]?.note || '';
+  if (list[0]?.url){ updateLinks(list[0].url); loadFile(list[0].url); }
+
+  $dataset.onchange = () => {
+    const d = list[$dataset.value];
+    $meta.textContent = d?.note || '';
+    if (d?.url){ updateLinks(d.url); loadFile(d.url); }
+  };
+}
+
+// Acción de los submenús
+document.querySelectorAll('.submenu').forEach(btn=>{
+  btn.addEventListener('click', ()=> listDatasets(btn.dataset.cat, btn.dataset.sub));
+});
+
+// Abrir por defecto Agricultura → 1 Producción (si existe)
+if (CATALOG["Agricultura"] && CATALOG["Agricultura"]["1 Producción"]) {
+  listDatasets("Agricultura","1 Producción");
+}
+</script>
