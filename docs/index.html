@@ -29,6 +29,13 @@
   tbody td{padding:6px;border-bottom:1px solid #eef2f0;white-space:nowrap}
   .tableWrap{overflow:auto;max-height:70vh;border:1px solid #eef2f0;border-radius:10px;margin-top:8px}
   @media (max-width:900px){.wrap{grid-template-columns:1fr}}
+   /* Ajuste de ancho para la columna "Mes" */
+  #tbl td:nth-child(2),
+  #tbl th:nth-child(2) {
+    min-width: 80px;
+    max-width: 100px;
+    white-space: normal;
+     }
 </style>
 <header><h1>AGRO – Navegador de datos</h1></header>
 <div class="wrap">
