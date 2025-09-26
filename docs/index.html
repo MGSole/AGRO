@@ -22,6 +22,7 @@
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   label{font-weight:600;margin-right:6px}
   select,input{padding:8px;border:1px solid #dcdfe3;border-radius:8px;background:#fff}
+  .btn{border:1px solid #dcdfe3;background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;text-decoration:none;color:#000}
   .small{font-size:12px;color:var(--muted)}
   table{width:100%;border-collapse:collapse;font-size:13px}
   thead th{position:sticky;top:0;background:#eef3f1;text-align:left;padding:6px;border-bottom:1px solid #dce5e0}
@@ -64,6 +65,12 @@
     <div class="row" style="margin-top:8px">
       <label>Buscar</label>
       <input id="q" placeholder="texto…">
+
+      <!-- NUEVO: acciones -->
+      <a id="open" class="btn" target="_blank" rel="noopener">Ver original</a>
+      <a id="dl" class="btn">Descargar original</a>
+      <button id="dlFiltered" class="btn">Descargar recorte (CSV)</button>
+
       <span id="status" class="small">Elegí un submenú para listar datasets.</span>
     </div>
 
@@ -74,14 +81,14 @@
 </div>
 
 <script>
-/* ===================== 1) CATÁLOGO ===================== 
-   EDITÁ SOLO ESTO: poné los archivos reales que subiste a docs/data/
-   Podés usar CSV o XLSX (lee la 1ª hoja del Excel).
+/* ===================== 1) CATÁLOGO =====================
+   Editá SOLO las URLs/títulos para que coincidan con tus archivos en docs/data/.
+   Si tus nombres tienen espacios/acentos, mejor renombrarlos o URL-codificarlos.
 */
 const CATALOG = {
   "Agricultura": {
     "1 Producción": [
-      { title: "Indicadores por cultivo y provincia (CSV)", url: "data/Agricultura_indicadores_Producción.xlsx", note: "Área sembrada, cosechada, rendimiento y producción." }
+      { title: "Indicadores por cultivo y provincia (XLSX)", url: "data/Agricultura_indicadores_Producción.xlsx", note: "Área sembrada, cosechada, rendimiento y producción." }
     ],
     "2 Existencias": [
       { title: "Existencias agrícolas (XLSX)", url: "data/agricultura_existencias.xlsx" }
@@ -111,72 +118,3 @@ const CATALOG = {
     ],
     "5 Comercialización": [
       { title: "Comercialización ganadera (CSV)", url: "data/comercializacion_ganaderia.csv" }
-    ]
-  }
-};
-/* ============== 2) Lógica (no hace falta tocar) ============== */
-const $dataset = document.getElementById('dataset');
-const $meta = document.getElementById('meta');
-const $q = document.getElementById('q');
-const $status = document.getElementById('status');
-const $thead = document.querySelector('#tbl thead');
-const $tbody = document.querySelector('#tbl tbody');
-
-let rows=[], cols=[], filtered=[];
-
-function fmt(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-AR'):n;}
-function render(){
-  $thead.innerHTML = '<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
-  $tbody.innerHTML = filtered.map(r=>'<tr>'+cols.map(c=>{
-    const v=r[c]; return `<td>${(String(v).length<16 && !isNaN(v))?fmt(v):(v??'')}</td>`;
-  }).join('')+'</tr>').join('');
-  $status.textContent = `Filas: ${filtered.length.toLocaleString('es-AR')} • Columnas: ${cols.length}`;
-}
-$q.addEventListener('input', ()=>{
-  const s=($q.value||'').toLowerCase().trim();
-  filtered = !s ? rows : rows.filter(r=>Object.values(r).some(v=>String(v).toLowerCase().includes(s)));
-  render();
-});
-
-async function loadFile(url){
-  $status.textContent = 'Cargando…'; rows=[]; cols=[]; filtered=[]; render();
-  if (url.toLowerCase().endsWith('.csv')){
-    const parsed = await new Promise((ok,err)=>Papa.parse(url,{download:true,header:true,dynamicTyping:true,skipEmptyLines:true,complete:ok,error:err}));
-    rows = parsed.data||[]; cols = parsed.meta?.fields || Object.keys(rows[0]||{});
-  } else { // XLSX
-    const res = await fetch(url); const buf = await res.arrayBuffer();
-    const wb = XLSX.read(buf,{type:'array'}); const sh = wb.Sheets[wb.SheetNames[0]];
-    rows = XLSX.utils.sheet_to_json(sh,{defval:''}); cols = Object.keys(rows[0]||{});
-  }
-  filtered = rows; render();
-}
-
-function listDatasets(cat, sub){
-  // activar estilo en el botón
-  document.querySelectorAll('.submenu').forEach(b=>b.classList.remove('active'));
-  const activeBtn = [...document.querySelectorAll(`.submenu[data-cat="${cat}"][data-sub="${sub}"]`)][0];
-  if (activeBtn) activeBtn.classList.add('active');
-
-  const list = (CATALOG[cat] && CATALOG[cat][sub]) ? CATALOG[cat][sub] : [];
-  $dataset.innerHTML = list.map((d,i)=>`<option value="${i}">${d.title}</option>`).join('');
-  $meta.textContent = list[0]?.note || '';
-  if (list[0]?.url) loadFile(list[0].url);
-
-  $dataset.onchange = () => {
-    const d = list[$dataset.value]; 
-    $meta.textContent = d?.note || '';
-    if (d?.url) loadFile(d.url);
-  };
-}
-
-// Acción de los submenús
-document.querySelectorAll('.submenu').forEach(btn=>{
-  btn.addEventListener('click', ()=> listDatasets(btn.dataset.cat, btn.dataset.sub));
-});
-
-// (Opcional) Abrir por defecto Agricultura → 1 Producción si existe
-if (CATALOG["Agricultura"] && CATALOG["Agricultura"]["1 Producción"]) {
-  listDatasets("Agricultura","1 Producción");
-}
-</script>
-
